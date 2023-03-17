@@ -13,8 +13,9 @@ class STFTBase(nn.Module):
     """
 
     def inverse_stft(
-        self, X, kernel_cos, kernel_sin, onesided=True, length=None, refresh_win=True
+        self, X, kernel_cos, kernel_sin, onesided=True, length=None, refresh_win=True, hop_length=None
     ):
+        stride = hop_length if hop_length is not None else self.stride
         # If the input spectrogram contains only half of the n_fft
         # Use extend_fbins function to get back another half
         if onesided:
@@ -34,14 +35,14 @@ class STFTBase(nn.Module):
         real /= self.n_fft
 
         # Overlap and Add algorithm to connect all the frames
-        real = overlap_add(real, self.stride)
+        real = overlap_add(real, stride)
 
         # Prepare the window sumsqure for division
         # Only need to create this window once to save time
         # Unless the input spectrograms have different time steps
         if hasattr(self, "w_sum") == False or refresh_win == True:
             self.w_sum = torch_window_sumsquare(
-                self.window_mask.flatten(), X.shape[2], self.stride, self.n_fft
+                self.window_mask.flatten(), X.shape[2], stride, self.n_fft
             ).flatten()
             self.nonzero_indices = self.w_sum > 1e-10
         else:
@@ -253,7 +254,7 @@ class STFT(STFTBase):
         else:
             pass
 
-    def forward(self, x, output_format=None):
+    def forward(self, x, output_format=None, hop_length=None):
         """
         Convert a batch of waveforms to spectrograms.
 
@@ -273,7 +274,7 @@ class STFT(STFTBase):
         """
         output_format = output_format or self.output_format
         self.num_samples = x.shape[-1]
-
+        stride = hop_length if hop_length is not None else self.stride
         x = broadcast_dim(x)
         if self.center:
             if self.pad_mode == "constant":
@@ -287,9 +288,9 @@ class STFT(STFTBase):
                 padding = nn.ReflectionPad1d(self.pad_amount)
 
             x = padding(x)
-        spec_imag = conv1d(x, self.wsin, stride=self.stride)
+        spec_imag = conv1d(x, self.wsin, stride=stride)
         spec_real = conv1d(
-            x, self.wcos, stride=self.stride
+            x, self.wcos, stride=stride
         )  # Doing STFT by using conv1d
 
         # remove redundant parts
@@ -523,7 +524,7 @@ class iSTFT(STFTBase):
         else:
             pass
 
-    def forward(self, X, onesided=False, length=None, refresh_win=None):
+    def forward(self, X, onesided=False, length=None, refresh_win=None, hop_length=None):
         """
         If your spectrograms only have ``n_fft//2+1`` frequency bins, please use ``onesided=True``,
         else use ``onesided=False``
@@ -535,12 +536,12 @@ class iSTFT(STFTBase):
         """
         if refresh_win == None:
             refresh_win = self.refresh_win
-
+        hop_length = hop_length if hop_length is not None else self.stride
         assert X.dim() == 4, (
             "Inverse iSTFT only works for complex number,"
             "make sure our tensor is in the shape of (batch, freq_bins, timesteps, 2)"
         )
 
         return self.inverse_stft(
-            X, self.kernel_cos, self.kernel_sin, onesided, length, refresh_win
+            X, self.kernel_cos, self.kernel_sin, onesided, length, refresh_win, hop_length=hop_length
         )

@@ -140,7 +140,7 @@ class VQT(torch.nn.Module):
             self.register_buffer("cqt_kernels_imag_{}".format(i), cqt_kernels_imag)            
             
 
-    def forward(self, x, output_format=None, normalization_type='librosa'):
+    def forward(self, x, output_format=None, normalization_type='librosa', hop_length=None):
         """
         Convert a batch of waveforms to VQT spectrograms.
         
@@ -158,7 +158,7 @@ class VQT(torch.nn.Module):
         x = broadcast_dim(x)
         if self.earlydownsample==True:
             x = downsampling_by_n(x, self.early_downsample_filter, self.downsample_factor)
-        hop = self.hop_length
+        hop = hop_length if hop_length is not None else self.hop_length
         vqt = []
 
         x_down = x  # Preparing a new variable for downsampling

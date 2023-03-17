@@ -130,7 +130,8 @@ class Gammatonegram(nn.Module):
         #     self.wsin = nn.Parameter(self.wsin)
         #     self.wcos = nn.Parameter(self.wcos)
 
-    def forward(self, x):
+    def forward(self, x, hop_length=None):
+        stride = hop_length if hop_length is not None else self.stride
         x = broadcast_dim(x)
         if self.center:
             if self.pad_mode == "constant":
@@ -142,8 +143,8 @@ class Gammatonegram(nn.Module):
 
         spec = (
             torch.sqrt(
-                conv1d(x, self.wsin, stride=self.stride).pow(2)
-                + conv1d(x, self.wcos, stride=self.stride).pow(2)
+                conv1d(x, self.wsin, stride=stride).pow(2)
+                + conv1d(x, self.wcos, stride=stride).pow(2)
             )
             ** self.power
         )  # Doing STFT by using conv1d

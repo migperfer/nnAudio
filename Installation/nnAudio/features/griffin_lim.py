@@ -79,7 +79,7 @@ class Griffin_Lim(nn.Module):
             get_window(window, int(self.win_length), fftbins=True), device=device
         ).float()
 
-    def forward(self, S):
+    def forward(self, S, hop_length=None):
         """
         Convert a batch of magnitude spectrograms to waveforms.
 
@@ -92,7 +92,7 @@ class Griffin_Lim(nn.Module):
         assert (
             S.dim() == 3
         ), "Please make sure your input is in the shape of (batch, freq_bins, timesteps)"
-
+        hop_length = self.hop_length if hop_length is None else hop_length
         # Initializing Random Phase
         rand_phase = torch.randn(*S.shape, device=self.device)
         angles = torch.empty((*S.shape, 2), device=self.device)
@@ -110,7 +110,7 @@ class Griffin_Lim(nn.Module):
             inverse = torch.istft(
                 S.unsqueeze(-1) * angles,
                 self.n_fft,
-                self.hop_length,
+                hop_length,
                 win_length=self.win_length,
                 window=self.w,
                 center=self.center,
@@ -119,7 +119,7 @@ class Griffin_Lim(nn.Module):
             rebuilt = torch.stft(
                 inverse,
                 self.n_fft,
-                self.hop_length,
+                hop_length,
                 win_length=self.win_length,
                 window=self.w,
                 pad_mode=self.pad_mode,
@@ -140,7 +140,7 @@ class Griffin_Lim(nn.Module):
         inverse = torch.istft(
             S.unsqueeze(-1) * angles,
             self.n_fft,
-            self.hop_length,
+            hop_length,
             win_length=self.win_length,
             window=self.w,
             center=self.center,

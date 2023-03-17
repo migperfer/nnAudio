@@ -186,7 +186,7 @@ class CQT1992(nn.Module):
 
         print("STFT kernels created, time used = {:.4f} seconds".format(time() - start))
 
-    def forward(self, x, output_format=None, normalization_type="librosa"):
+    def forward(self, x, output_format=None, normalization_type="librosa", hop_length=None):
         """
         Convert a batch of waveforms to CQT spectrograms.
 
@@ -200,6 +200,7 @@ class CQT1992(nn.Module):
             It will be automatically broadcast to the right shape
         """
         output_format = output_format or self.output_format
+        hop_length = self.hop_length if hop_length is None else hop_length
 
         x = broadcast_dim(x)
         if self.center:
@@ -211,8 +212,8 @@ class CQT1992(nn.Module):
             x = padding(x)
 
             # STFT
-        fourier_real = conv1d(x, self.wcos, stride=self.hop_length)
-        fourier_imag = conv1d(x, self.wsin, stride=self.hop_length)
+        fourier_real = conv1d(x, self.wcos, stride=hop_length)
+        fourier_imag = conv1d(x, self.wsin, stride=hop_length)
 
         # CQT
         CQT_real, CQT_imag = complex_mul(
@@ -478,7 +479,7 @@ class CQT2010(nn.Module):
         elif self.pad_mode == "reflect":
             self.padding = nn.ReflectionPad1d(self.n_fft // 2)
 
-    def forward(self, x, output_format=None, normalization_type="librosa"):
+    def forward(self, x, output_format=None, normalization_type="librosa", hop_length=None):
         """
         Convert a batch of waveforms to CQT spectrograms.
 
@@ -498,7 +499,7 @@ class CQT2010(nn.Module):
             x = downsampling_by_n(
                 x, self.early_downsample_filter, self.downsample_factor
             )
-        hop = self.hop_length
+        hop = self.hop_length if hop_length is None else hop_length
 
         CQT = get_cqt_complex2(
             x,
@@ -709,7 +710,7 @@ class CQT1992v2(nn.Module):
                 "CQT kernels created, time used = {:.4f} seconds".format(time() - start)
             )
 
-    def forward(self, x, output_format=None, normalization_type="librosa"):
+    def forward(self, x, output_format=None, normalization_type="librosa", hop_length=None):
         """
         Convert a batch of waveforms to CQT spectrograms.
 
@@ -735,7 +736,7 @@ class CQT1992v2(nn.Module):
             its frequency.
         """
         output_format = output_format or self.output_format
-
+        hop_length = hop_length if hop_length is not None else self.hop_length
         x = broadcast_dim(x)
         if self.center:
             if self.pad_mode == "constant":
@@ -746,8 +747,8 @@ class CQT1992v2(nn.Module):
             x = padding(x)
 
         # CQT
-        CQT_real = conv1d(x, self.cqt_kernels_real, stride=self.hop_length)
-        CQT_imag = -conv1d(x, self.cqt_kernels_imag, stride=self.hop_length)
+        CQT_real = conv1d(x, self.cqt_kernels_real, stride=hop_length)
+        CQT_imag = -conv1d(x, self.cqt_kernels_imag, stride=hop_length)
 
         if normalization_type == "librosa":
             CQT_real *= torch.sqrt(self.lenghts.view(-1, 1))
@@ -779,11 +780,11 @@ class CQT1992v2(nn.Module):
             phase_imag = torch.sin(torch.atan2(CQT_imag, CQT_real))
             return torch.stack((phase_real, phase_imag), -1)
 
-    def forward_manual(self, x):
+    def forward_manual(self, x, hop_length=None):
         """
         Method for debugging
         """
-
+        hop_length = hop_length if hop_length is not None else self.hop_length
         x = broadcast_dim(x)
         if self.center:
             if self.pad_mode == "constant":
@@ -794,8 +795,8 @@ class CQT1992v2(nn.Module):
             x = padding(x)
 
         # CQT
-        CQT_real = conv1d(x, self.cqt_kernels_real, stride=self.hop_length)
-        CQT_imag = conv1d(x, self.cqt_kernels_imag, stride=self.hop_length)
+        CQT_real = conv1d(x, self.cqt_kernels_real, stride=hop_length)
+        CQT_imag = conv1d(x, self.cqt_kernels_imag, stride=hop_length)
 
         # Getting CQT Amplitude
         CQT = torch.sqrt(CQT_real.pow(2) + CQT_imag.pow(2))
@@ -1067,7 +1068,7 @@ class CQT2010v2(nn.Module):
         elif self.pad_mode == "reflect":
             self.padding = nn.ReflectionPad1d(self.n_fft // 2)
 
-    def forward(self, x, output_format=None, normalization_type="librosa"):
+    def forward(self, x, output_format=None, normalization_type="librosa", hop_length=None):
         """
         Convert a batch of waveforms to CQT spectrograms.
 
@@ -1087,7 +1088,7 @@ class CQT2010v2(nn.Module):
             x = downsampling_by_n(
                 x, self.early_downsample_filter, self.downsample_factor
             )
-        hop = self.hop_length
+        hop = hop_length if hop_length is not None else self.hop_length
         CQT = get_cqt_complex(
             x, self.cqt_kernels_real, self.cqt_kernels_imag, hop, self.padding
         )  # Getting the top octave CQT

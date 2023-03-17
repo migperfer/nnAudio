@@ -134,11 +134,12 @@ class Combined_Frequency_Periodicity(nn.Module):
 
         return spec, ceps
 
-    def forward(self, x):
+    def forward(self, x, hop_length = None):
+        hop_length = self.hop_length if hop_length is None else hop_length
         tfr0 = torch.stft(
             x,
             self.N,
-            hop_length=self.hop_length,
+            hop_length=hop_length,
             win_length=self.window_size,
             window=self.h,
             onesided=False,
@@ -371,11 +372,12 @@ class CFP(nn.Module):
 
         return spec, ceps
 
-    def forward(self, x):
+    def forward(self, x, hop_length = None):
+        hop_length = self.hop_length if hop_length is None else hop_length
         tfr0 = torch.stft(
             x,
             self.N,
-            hop_length=self.hop_length,
+            hop_length=hop_length,
             win_length=self.window_size,
             window=self.h,
             onesided=False,
@@ -408,10 +410,10 @@ class CFP(nn.Module):
 
         # Only need to calculate this once
         self.t = np.arange(
-            self.hop_length,
-            np.ceil(len(x) / float(self.hop_length)) * self.hop_length,
-            self.hop_length,
-        )  # it won't be used but will be returned
+            hop_length,
+            np.ceil(len(x) / float(hop_length)) * hop_length,
+            hop_length,
+        )  # it won't be used but will be stored
 
         return Z  # , tfrL0, tfrLF, tfrLQ
 

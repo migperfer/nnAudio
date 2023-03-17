@@ -168,7 +168,7 @@ class MelSpectrogram(nn.Module):
         #     self.wsin = nn.Parameter(self.wsin)
         #     self.wcos = nn.Parameter(self.wcos)
 
-    def forward(self, x):
+    def forward(self, x, hop_length=None):
         """
         Convert a batch of waveforms to Mel spectrograms.
 
@@ -182,8 +182,8 @@ class MelSpectrogram(nn.Module):
             It will be automatically broadcast to the right shape
         """
         x = broadcast_dim(x)
-
-        spec = self.stft(x, output_format="Magnitude") ** self.power
+        hop_length = self.stride if hop_length is None else hop_length
+        spec = self.stft(x, output_format="Magnitude", hop_length=hop_length) ** self.power
 
         melspec = torch.matmul(self.mel_basis, spec)
         return melspec
@@ -306,7 +306,7 @@ class MFCC(nn.Module):
 
         return V.permute(0, 2, 1)  # swapping back the time axis and freq axis
 
-    def forward(self, x):
+    def forward(self, x, hop_length=None):
         """
         Convert a batch of waveforms to MFCC.
 
@@ -319,8 +319,7 @@ class MFCC(nn.Module):
             3. ``(num_audio, 1, len_audio)``
             It will be automatically broadcast to the right shape
         """
-
-        x = self.melspec_layer(x)
+        x = self.melspec_layer(x, hop_length=hop_length)
         x = self._power_to_db(x)
         x = self._dct(x, norm="ortho")[:, : self.m_mfcc, :]
         return x
